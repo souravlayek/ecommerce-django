@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+  <!--Main layout-->
+  <main>
+    <div class="container">
+        <div class="table-responsive">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Item Title</th>
+        <th scope="col">Price</th>
+        <th scope="col">Quantity</th>
+        <th scope="col">Total Item Price</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for orderitem in object.items.all %}
+      <tr>
+        <th scope="row">{{forloop.counter}}</th>
+        <td>{{orderitem.item.title}}</td>
+        <td>${{orderitem.item.price}}</td>
+        <td>
+            <a class="badge badge-danger mr-2" href="{% url 'core:remove_single_item_from_cart' 'remove' orderitem.item.slug %}"><i class="fas fa-minus"></i></a>
+                {{orderitem.quantity}}
+            <a class="badge badge-success ml-2" href="{% url 'core:remove_single_item_from_cart' 'add' orderitem.item.slug %}"><i class="fas fa-plus"></i></a></td>
+        <td>
+         {% if orderitem.item.discount_price %}
+            ${{orderitem.get_final_price}}
+            <span class="badge badge-success">saving ${{orderitem.get_amount_save}} </span>
+        {% else %}
+            ${{orderitem.get_final_price}}
+        {% endif %}
+        </td>
+        <td><a class="badge badge-danger mr-2" href="{% url 'core:remove_from_cart' orderitem.item.slug %}"><i class="fas fa-trash"></i></td>
+      </tr>
+      {% empty %}
+      <tr>
+      <td colspan='6'>
+      No Items in Your Cart Add Something..<a class="btn btn-warning float-right" href="">Proceed To checkout</a>
+      </td>
+      </tr>
+      {% endfor %}
+      {% if object.get_total_price %}
+      <tr>
+        <td colspan="5"><strong>Order Total: </strong></td>
+        <td>{{object.get_total_price}}</td>
+      </tr>
+      <tr>
+        <td colspan="6"><a class="btn btn-warning float-right" href="">Proceed To checkout</a>
+        <a class="btn btn-primary float-right mr-2" href="">Continue Shopping</a></td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+      <!--Section: Products v.3-->
+      <section class="text-center mb-4">
+
+        <div class="row wow fadeIn">
+          {% for item in object_list %}
+          <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card">
+              <div class="view overlay">
+              
+                <img src="https://mdbootstrap.com/img/Photos/Horizontal/E-commerce/Vertical/12.jpg" class="card-img-top"
+                  alt="">
+                <a href="{{item.get_absolute_url}}">
+                  <div class="mask rgba-white-slight"></div>
+                </a>
+              </div>
+              <div class="card-body text-center">
+                <a href="" class="grey-text">
+                  <h5>{{item.get_catagory_display}}</h5>
+                </a>
+                <h5>
+                  <strong>
+                    <a href="{{item.get_absolute_url}}" class="dark-grey-text">{{item.title}}
+                      <span class="badge badge-pill {{item.get_label_display}}-color">NEW</span>
+                    </a>
+                  </strong>
+                </h5>
+
+                <h4 class="font-weight-bold blue-text">
+                  <strong>{% if item.discount_price %}{{item.discount_price}}{% else %}{{item.price}}{% endif %}$</strong>
+                </h4>
+
+              </div>
+              <!--Card content-->
+
+            </div>
+            <!--Card-->
+
+          </div>
+          <!--Grid column-->
+          {% endfor %}
+
+        </div>
+        <!--Grid row-->
+
+      </section>
+      <!--Section: Products v.3-->
+
+
+    </div>
+  </main>
+  <!--Main layout-->
+
+{% endblock content %}
