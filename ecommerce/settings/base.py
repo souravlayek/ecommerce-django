@@ -18,6 +18,8 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
 
+    'crispy_forms',
+
     'core',
 
 
@@ -84,3 +86,8 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 SITE_ID = 1
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+LOGIN_REDIRECT_URL = "/"
+# for crispy forms
+CRISPY_TEMPLATE_PACK = 'bootstrap4'
