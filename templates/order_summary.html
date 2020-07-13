@@ -38,7 +38,7 @@
       {% empty %}
       <tr>
       <td colspan='6'>
-      No Items in Your Cart Add Something..<a class="btn btn-warning float-right" href="">Proceed To checkout</a>
+      No Items in Your Cart Add Something..<a class="btn btn-primary float-right mr-2" href="{% url 'core:home' %}">Continue Shopping</a>
       </td>
       </tr>
       {% endfor %}
@@ -48,8 +48,8 @@
         <td>{{object.get_total_price}}</td>
       </tr>
       <tr>
-        <td colspan="6"><a class="btn btn-warning float-right" href="">Proceed To checkout</a>
-        <a class="btn btn-primary float-right mr-2" href="">Continue Shopping</a></td>
+        <td colspan="6"><a class="btn btn-warning float-right" href="{% url 'core:checkout' %}">Proceed To checkout</a>
+        <a class="btn btn-primary float-right mr-2" href="{% url 'core:home' %}">Continue Shopping</a></td>
       </tr>
       {% endif %}
     </tbody>
