@@ -1,5 +1,6 @@
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Item, OrderItem, Order, BillingAddress
+from .models import Item, OrderItem, Order, BillingAddress, Payment
 from django.views.generic import ListView, DetailView, View
 from django.utils import timezone
 from django.contrib import messages
@@ -7,6 +8,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .forms import CheckoutForm
+import stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# `source` is obtained with Stripe.js; see https://stripe.com/docs/payments/accept-a-payment-charges#web-create-token
 
 
 class HomeView(ListView):
@@ -32,6 +37,86 @@ class OrderSummaryView(View, LoginRequiredMixin):
 class ItemDetailView(DetailView):
     model = Item
     template_name = "product-page.html"
+
+
+class PaymentView(View):
+    def get(self, *args, **kwargs):
+        order = Order.objects.get(user=self.request.user, ordered=False)
+        context = {
+            'order': order
+        }
+        return render(self.request, 'payment.html', context)
+
+    def post(self, *args, **kwargs):
+        order = Order.objects.get(user=self.request.user, ordered=False)
+        token = self.request.POST.get('stripeToken')
+        amount = int(order.get_total_price())
+        try:
+            charge = stripe.Charge.create(
+                amount=amount,
+                currency="usd",
+                source=token,
+                description="My First Test Charge (created for API docs)",
+            )
+            # payment set
+            payment = Payment()
+            payment.stripe_charge_id = charge['id']
+            payment.user = self.request.user
+            payment.amount = order.get_total_price()
+            payment.save()
+
+            # order set
+            order.ordered = True
+            order.payment = payment
+            order.save()
+
+            messages.success(self.request, "order has succesfully done")
+            return redirect('/')
+
+        except stripe.error.CardError as e:
+            # Since it's a decline, stripe.error.CardError will be caught
+            messages.error(self.request, f"{e.error.message}")
+
+            print('Status is: %s' % e.http_status)
+            print('Type is: %s' % e.error.type)
+            print('Code is: %s' % e.error.code)
+            # param is '' in this case
+            print('Param is: %s' % e.error.param)
+            print('Message is: %s' % e.error.message)
+
+        except stripe.error.RateLimitError as e:
+            # Too many requests made to the API too quickly
+            messages.error(self.request, f"{e.error.message}")
+            return redirect('/')
+
+        except stripe.error.InvalidRequestError as e:
+            # Invalid parameters were supplied to Stripe's API
+            messages.error(self.request, "Invalid Parameters")
+            return redirect('/')
+
+        except stripe.error.AuthenticationError as e:
+            # Authentication with Stripe's API failed
+            # (maybe you changed API keys recently)
+            messages.error(self.request, "Not authenticated")
+            return redirect('/')
+
+        except stripe.error.APIConnectionError as e:
+            # Network communication with Stripe failed
+            messages.error(self.request, "Network Error")
+            return redirect('/')
+
+        except stripe.error.StripeError as e:
+            # Display a very generic error to the user, and maybe send
+            # yourself an email
+            messages.error(
+                self.request, "Something went wrong please try again.")
+            return redirect('/')
+
+        except Exception as e:
+            # send an email to ourselves
+            messages.error(
+                self.request, "A serious error occurred, we have been notified")
+            return redirect('/')
 
 
 class CheckoutView(View):
@@ -64,7 +149,14 @@ class CheckoutView(View):
                 order.billing_address = billing_address
                 order.save()
                 # TODO: redirect to selected payment option
-                return redirect('core:checkout')
+                if payment_options == 'S':
+                    return redirect('core:payment', payment_option='stripe')
+                elif payment_options == 'P':
+                    return redirect('core:payment', payment_option='paypal')
+                else:
+                    messages.warning(self.request, 'Invalid payment Option')
+                    return redirect('core:checkout')
+
             messages.warning(self.request, 'Failed Checkout')
             return redirect('core:checkout')
         except ObjectDoesNotExist:

@@ -76,6 +76,7 @@ scour==0.37
 sip==4.19.22
 six==1.15.0
 sqlparse==0.3.1
+stripe==2.48.0
 team==1.0
 terminator==1.92
 toml==0.10.1

@@ -25,7 +25,7 @@ DATABASES = {
     }
 }
 
-# debu toolbar settings 
+# debu toolbar settings
 DEBUG_TOOLBAR_PANELS = [
     'debug_toolbar.panels.versions.VersionsPanel',
     'debug_toolbar.panels.timer.TimerPanel',
@@ -42,10 +42,14 @@ DEBUG_TOOLBAR_PANELS = [
     'debug_toolbar.panels.profiling.ProfilingPanel',
 ]
 
+
 def show_toolbar(request):
     return True
+
 
 DEBUG_TOOLBAR_CONFIG = {
     'INTERCEPTS_REDIRECTS': False,
     'SHOW_TOOLBAR_CALLBACK': show_toolbar
 }
+
+STRIPE_SECRET_KEY = "sk_test_51H4rD4LJl9q7YS6eXisKhIoj6NgmYv4Qznj5sQxixOontUYcAEcnKDPKDpKhFYBnFY1XypWM2CDZmyU8qLt7CFad00w91wYsrp"
