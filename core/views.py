@@ -1,13 +1,13 @@
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Item, OrderItem, Order, BillingAddress, Payment
+from .models import Item, OrderItem, Order, BillingAddress, Payment, Coupon
 from django.views.generic import ListView, DetailView, View
 from django.utils import timezone
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .forms import CheckoutForm
+from .forms import CheckoutForm, CouponForm
 import stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -28,7 +28,7 @@ class OrderSummaryView(View, LoginRequiredMixin):
                 'object': order
             }
         except ObjectDoesNotExist:
-            messages.error('You don\'t have an active order ')
+            messages.error(self.request, 'You don\'t have an active order ')
             return redirect('/')
 
         return render(self.request, "order_summary.html", context)
@@ -43,18 +43,19 @@ class PaymentView(View):
     def get(self, *args, **kwargs):
         order = Order.objects.get(user=self.request.user, ordered=False)
         context = {
-            'order': order
+            'order': order,
+            'DISPLAY_COUPON_FORM': False
         }
         return render(self.request, 'payment.html', context)
 
     def post(self, *args, **kwargs):
         order = Order.objects.get(user=self.request.user, ordered=False)
         token = self.request.POST.get('stripeToken')
-        amount = int(order.get_total_price())
+        amount = int(order.get_total_price()) * 77
         try:
             charge = stripe.Charge.create(
                 amount=amount,
-                currency="usd",
+                currency="inr",
                 source=token,
                 description="My First Test Charge (created for API docs)",
             )
@@ -65,7 +66,11 @@ class PaymentView(View):
             payment.amount = order.get_total_price()
             payment.save()
 
-            # order set
+            # order set\
+            order_items = order.items.all()
+            order_items.update(ordered=True)
+            for item in order_items:
+                item.save()
             order.ordered = True
             order.payment = payment
             order.save()
@@ -122,6 +127,20 @@ class PaymentView(View):
 class CheckoutView(View):
     def get(self, *args, **kwargs):
         # forms
+        try:
+            order = Order.objects.get(user=self.request.user, ordered=False)
+            form = CheckoutForm()
+            context = {
+                'form': form,
+                'couponform': CouponForm(),
+                'order': order,
+                'DISPLAY_COUPON_FORM': True
+            }
+            return render(self.request, 'checkout.html', context)
+        except ObjectDoesNotExist:
+            messages.info(self.request, "You do not have any active order")
+            return redirect("core:checkout")
+
         form = CheckoutForm()
         context = {
             'form': form
@@ -249,3 +268,29 @@ def remove_single_item_from_cart(request, task, slug):
         messages.info(request, "You do not have any active order")
         return redirect("core:ordersummary")
     return redirect("core:ordersummary")
+
+
+def get_coupon(request, code):
+    try:
+        coupon = Coupon.objects.get(code=code)
+        return coupon
+    except ObjectDoesNotExist:
+        messages.info(request, "This is not a valid coupon")
+        return redirect("core:checkout")
+
+
+class AddCoupon(View):
+    def post(self, *args, **kwargs):
+        form = CouponForm(self.request.POST or None)
+        if form.is_valid():
+            try:
+                code = form.cleaned_data.get('code')
+                order = Order.objects.get(
+                    user=self.request.user, ordered=False)
+                order.coupon = get_coupon(self.request, code)
+                order.save()
+                messages.success(self.request, "successully added coupon")
+                return redirect("core:checkout")
+            except ObjectDoesNotExist:
+                messages.info(self.request, "You do not have any active order")
+                return redirect("core:checkout")

@@ -19,6 +19,7 @@ LABEL_CHOICES = (
 
 class Item(models.Model):
     title = models.CharField(max_length=100)
+    image = models.ImageField()
     price = models.FloatField()
     discount_price = models.FloatField(blank=True, null=True)
     catagory = models.CharField(choices=CATAGORY_CHOICES, max_length=2)
@@ -79,6 +80,9 @@ class Order(models.Model):
     payment = models.ForeignKey('Payment',
                                 on_delete=models.SET_NULL, null=True, blank=True)
 
+    coupon = models.ForeignKey('Coupon',
+                               on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
         return self.user.username
 
@@ -86,6 +90,7 @@ class Order(models.Model):
         total = 0
         for orderitem in self.items.all():
             total += orderitem.get_final_price()
+        total -= self.coupon.amount
         return total
 
 
@@ -110,3 +115,11 @@ class Payment(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=15)
+    amount = models.FloatField()
+
+    def __str__(self):
+        return self.code
