@@ -182,7 +182,6 @@ class CheckoutView(View):
                 order.billing_address = billing_address
                 order.shipping_address = billing_address
                 order.save()
-                # TODO: redirect to selected payment option
                 if payment_options == 'S':
                     return redirect('core:payment', payment_option='stripe')
                 elif payment_options == 'P':
