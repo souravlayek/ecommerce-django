@@ -68,7 +68,7 @@
               </div>
               <!--Grid row-->
 
-              <hr>
+              {% comment %} <hr>
 
               <div class="custom-control custom-checkbox">
                 <input type="checkbox" {% if form.save_billing_address.value %} checked {% endif %} class="custom-control-input" name="save_billing_address" id="same-address">
@@ -77,7 +77,7 @@
               <div class="custom-control custom-checkbox">
                 <input type="checkbox" {% if form.save_info.value %} checked {% endif %} class="custom-control-input" name="save_info" id="save-info">
                 <label class="custom-control-label" for="save-info">Save this information for next time</label>
-              </div>
+              </div> {% endcomment %}
 
               <hr>
 

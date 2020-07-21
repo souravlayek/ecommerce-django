@@ -1,17 +1,23 @@
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Item, OrderItem, Order, BillingAddress, Payment, Coupon
+from .models import Item, OrderItem, Order, Address, Payment, Coupon, Refund
 from django.views.generic import ListView, DetailView, View
 from django.utils import timezone
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .forms import CheckoutForm, CouponForm
+from .forms import CheckoutForm, CouponForm, RefundForm
+import random
+import string
 import stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # `source` is obtained with Stripe.js; see https://stripe.com/docs/payments/accept-a-payment-charges#web-create-token
+
+
+def create_ref_code():
+    return ''.join(random.choices(string.ascii_lowercase + string.digits, k=20))
 
 
 class HomeView(ListView):
@@ -52,6 +58,7 @@ class PaymentView(View):
         order = Order.objects.get(user=self.request.user, ordered=False)
         token = self.request.POST.get('stripeToken')
         amount = int(order.get_total_price()) * 77
+        print(amount)
         try:
             charge = stripe.Charge.create(
                 amount=amount,
@@ -73,6 +80,10 @@ class PaymentView(View):
                 item.save()
             order.ordered = True
             order.payment = payment
+            # TODO assign the ref code
+            ref_code = create_ref_code()
+            print(ref_code)
+            order.ref_code = ref_code
             order.save()
 
             messages.success(self.request, "order has succesfully done")
@@ -96,6 +107,7 @@ class PaymentView(View):
 
         except stripe.error.InvalidRequestError as e:
             # Invalid parameters were supplied to Stripe's API
+            print(e)
             messages.error(self.request, "Invalid Parameters")
             return redirect('/')
 
@@ -119,6 +131,7 @@ class PaymentView(View):
 
         except Exception as e:
             # send an email to ourselves
+            print(e)
             messages.error(
                 self.request, "A serious error occurred, we have been notified")
             return redirect('/')
@@ -157,15 +170,17 @@ class CheckoutView(View):
                     'appertment_address')
                 country = form.cleaned_data.get('country')
                 zip = form.cleaned_data.get('zip')
-                # TODO: these will handel in future
-                # save_billing_address = form.cleaned_data.get(
-                #     'save_billing_address')
-                # save_info = form.cleaned_data.get('save_info')
                 payment_options = form.cleaned_data.get('payment_options')
-                billing_address = BillingAddress(user=self.request.user, street_address=street_address, appertment_address=appertment_address, country=country, zip=zip
-                                                 )
+                billing_address = Address(user=self.request.user,
+                                          street_address=street_address,
+                                          appertment_address=appertment_address,
+                                          country=country,
+                                          zip=zip,
+                                          address_type='B'
+                                          )
                 billing_address.save()
                 order.billing_address = billing_address
+                order.shipping_address = billing_address
                 order.save()
                 # TODO: redirect to selected payment option
                 if payment_options == 'S':
@@ -294,3 +309,38 @@ class AddCoupon(View):
             except ObjectDoesNotExist:
                 messages.info(self.request, "You do not have any active order")
                 return redirect("core:checkout")
+
+
+class RequestRefund(View):
+    def get(self, *args, **kwargs):
+        form = RefundForm()
+        context = {
+            'form': form
+        }
+        return render(self.request, 'request_refund.html', context)
+
+    def post(self, *args, **kwargs):
+        form = RefundForm(self.request.POST)
+        if form.is_valid():
+            ref_code = form.cleaned_data.get('ref_code')
+            message = form.cleaned_data.get('message')
+            email = form.cleaned_data.get('email')
+            # edit the order
+            try:
+                order = Order.objects.get(ref_code=ref_code)
+                order.refund_requested = True
+                order.save()
+                refund = Refund()
+                refund.order = order
+                refund.message = message
+                refund.email = email
+                refund.save()
+                messages.info(self.request, 'Successfully requested refund')
+                return redirect('core:request-refund')
+
+            except ObjectDoesNotExist:
+                messages.info(self.request, 'this order doesnot exist')
+                return redirect('core:request-refund')
+        else:
+            messages.info(self.request, 'given information is wrong')
+            return redirect('core:request-refund')

@@ -7,7 +7,7 @@
   "python.linting.pylintArgs": ["W0614", "--load-plugins", "pylint_django"],
   "python.venvPath": "${workspaceFolder}/env/bin/python3",
   "python.linting.pycodestyleArgs": ["--ignore=E501"],
-  // "editor.multiCursorModifier": "ctrlCmd",
+  "editor.multiCursorModifier": "ctrlCmd",
   "files.exclude": {
     "**/*.pyc": true
   }
